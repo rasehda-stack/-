@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a student or user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "An alert for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "type": { "type": "string", "enum": ["schedule", "question", "achievement"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "body", "type", "read", "createdAt"]
+    },
+    "QuestionMarking": {
+      "title": "Question Marking",
+      "description": "User's marking of a question as important or challenging.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "isImportant": { "type": "boolean" },
+        "isChallenging": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "questionId", "isImportant", "isChallenging", "updatedAt"]
+    },
+    "QuizResult": {
+      "title": "Quiz Result",
+      "description": "Result of a completed quiz session.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "chapter": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "correctAnswers": { "type": "number" },
+        "isMinisterial": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "subjectId", "score", "totalQuestions", "correctAnswers", "isMinisterial", "createdAt"]
+    },
+    "ScheduleItem": {
+      "title": "Schedule Item",
+      "description": "A study session in the user's schedule.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "subject": { "type": "string" },
+        "time": { "type": "string" },
+        "day": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "subject", "time", "day", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles." },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications." },
+    "/users/{userId}/markings/{questionId}": { "schema": "QuestionMarking", "description": "User's question markings." },
+    "/users/{userId}/quizResults/{resultId}": { "schema": "QuizResult", "description": "User's quiz results." },
+    "/users/{userId}/schedule/{itemId}": { "schema": "ScheduleItem", "description": "User's study schedule." }
+  }
+}

@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - email: string (required, email format)
+    //   - role: string (required, enum: student, admin)
+    //   - createdAt: string (required, date-time)
+    //
+    // Collection: notifications
+    // Document ID: notificationId
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - title: string (required)
+    //   - body: string (required)
+    //   - type: string (required, enum: schedule, question, achievement)
+    //   - read: boolean (required)
+    //   - createdAt: string (required, date-time)
+    //
+    // Collection: users/{userId}/markings
+    // Document ID: questionId
+    // Fields:
+    //   - userId: string (required)
+    //   - questionId: string (required)
+    //   - isImportant: boolean (required)
+    //   - isChallenging: boolean (required)
+    //   - updatedAt: string (required, date-time)
+    //
+    // Collection: users/{userId}/quizResults
+    // Document ID: resultId
+    // Fields:
+    //   - userId: string (required)
+    //   - subjectId: string (required)
+    //   - chapter: string (optional)
+    //   - score: number (required)
+    //   - totalQuestions: number (required)
+    //   - correctAnswers: number (required)
+    //   - isMinisterial: boolean (required)
+    //   - createdAt: string (required, date-time)
+    //
+    // Collection: users/{userId}/schedule
+    // Document ID: itemId
+    // Fields:
+    //   - userId: string (required)
+    //   - subject: string (required)
+    //   - time: string (required)
+    //   - day: string (required)
+    //   - createdAt: string (required, date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role', 'createdAt']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['student', 'admin'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'body', 'type', 'read', 'createdAt']) &&
+             data.id is string &&
+             data.userId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.body is string && data.body.size() > 0 && data.body.size() < 1000 &&
+             data.type in ['schedule', 'question', 'achievement'] &&
+             data.read is bool &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidMarking(data) {
+      return data.keys().hasAll(['userId', 'questionId', 'isImportant', 'isChallenging', 'updatedAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.questionId is string &&
+             data.isImportant is bool &&
+             data.isChallenging is bool &&
+             isValidDateString(data.updatedAt);
+    }
+
+    function isValidQuizResult(data) {
+      return data.keys().hasAll(['userId', 'subjectId', 'score', 'totalQuestions', 'correctAnswers', 'isMinisterial', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.subjectId is string &&
+             data.score is number &&
+             data.totalQuestions is number &&
+             data.correctAnswers is number &&
+             data.isMinisterial is bool &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidScheduleItem(data) {
+      return data.keys().hasAll(['userId', 'subject', 'time', 'day', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.subject is string &&
+             data.time is string &&
+             data.day is string &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+
+      match /markings/{questionId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidMarking(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /quizResults/{resultId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidQuizResult(request.resource.data);
+      }
+
+      match /schedule/{itemId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidScheduleItem(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId && isValidNotification(request.resource.data);
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+  }
+}
